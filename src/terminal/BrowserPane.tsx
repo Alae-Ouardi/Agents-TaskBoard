@@ -122,11 +122,23 @@ export function BrowserPane({ folderId, paneId, url, visible, onFocus, onClose }
     terminalStore.setPage(folderId, paneId, { url: "", title: "" });
   }
 
-  const act = (action: "back" | "forward" | "reload") => () =>
+  const act = (action: "back" | "forward" | "reload" | "find") => () =>
     void invoke("browser_go", { paneId, action }).catch((e) => setError(String(e)));
 
   return (
-    <div className="flex h-full w-full flex-col" onMouseDown={onFocus}>
+    <div
+      className="flex h-full w-full flex-col"
+      onMouseDown={onFocus}
+      // ⌘R and ⌘F from the toolbar; inside the page the web view handles them itself.
+      onKeyDown={(e) => {
+        const key = e.key.toLowerCase();
+        if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (key === "r" || key === "f") && url) {
+          e.preventDefault();
+          e.stopPropagation();
+          act(key === "r" ? "reload" : "find")();
+        }
+      }}
+    >
       <div className="flex shrink-0 items-center gap-1 border-b border-[var(--line)] bg-[var(--panel)] px-1.5 py-1">
         <button className={ICON_BTN} onClick={act("back")} disabled={!url} title="Back" aria-label="Back">
           ‹
@@ -134,7 +146,7 @@ export function BrowserPane({ folderId, paneId, url, visible, onFocus, onClose }
         <button className={ICON_BTN} onClick={act("forward")} disabled={!url} title="Forward" aria-label="Forward">
           ›
         </button>
-        <button className={ICON_BTN} onClick={act("reload")} disabled={!url} title="Reload" aria-label="Reload">
+        <button className={ICON_BTN} onClick={act("reload")} disabled={!url} title="Reload (⌘R)" aria-label="Reload">
           ⟳
         </button>
         <button className={ICON_BTN} onClick={home} title="Start page" aria-label="Start page">
@@ -156,6 +168,12 @@ export function BrowserPane({ folderId, paneId, url, visible, onFocus, onClose }
             spellCheck={false}
           />
         </form>
+        <button className={ICON_BTN} onClick={act("find")} disabled={!url} title="Find in page (⌘F)" aria-label="Find in page">
+          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </button>
         <button
           className={ICON_BTN}
           onClick={() => url && void openUrl(url).catch((e) => setError(String(e)))}

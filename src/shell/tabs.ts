@@ -6,6 +6,8 @@ import type { Screen } from "./AppSwitcher";
 export interface Tab {
   id: string;
   screen: Screen;
+  /** Name the user gave the tab; absent means the automatic title. */
+  title?: string;
 }
 
 export interface TabsState {
@@ -63,6 +65,17 @@ export function setScreen(state: TabsState, id: string, screen: Screen): TabsSta
   return { ...state, tabs: state.tabs.map((t) => (t.id === id ? { ...t, screen } : t)) };
 }
 
+/** Give a tab a name; a blank one brings back the automatic title. */
+export function renameTab(state: TabsState, id: string, title: string): TabsState {
+  const name = title.trim();
+  const tabs = state.tabs.map((t) => {
+    if (t.id !== id) return t;
+    const { title: _old, ...rest } = t;
+    return name ? { ...rest, title: name } : rest;
+  });
+  return { ...state, tabs };
+}
+
 export function moveTab(state: TabsState, id: string, toIndex: number): TabsState {
   const from = state.tabs.findIndex((t) => t.id === id);
   if (from === -1) return state;
@@ -78,7 +91,10 @@ const SCREENS: Screen[] = ["home", "taskboard", "tp", "k8s", "db", "calendar", "
 export function restoreTabs(raw: unknown): TabsState {
   const value = raw as Partial<TabsState> | null;
   const tabs = Array.isArray(value?.tabs)
-    ? value!.tabs.filter((t): t is Tab => typeof t?.id === "string" && SCREENS.includes(t.screen)).slice(0, MAX_TABS)
+    ? value!.tabs
+        .filter((t): t is Tab => typeof t?.id === "string" && SCREENS.includes(t.screen))
+        .slice(0, MAX_TABS)
+        .map(({ id, screen, title }) => (typeof title === "string" && title.trim() ? { id, screen, title } : { id, screen }))
     : [];
   if (tabs.length === 0) return initialTabs();
   const activeId = tabs.some((t) => t.id === value?.activeId) ? value!.activeId! : tabs[0].id;

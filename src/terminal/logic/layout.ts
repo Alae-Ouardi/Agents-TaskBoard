@@ -18,9 +18,14 @@ export function newPane(cwd: string, view: PaneView = "terminal"): PaneNode {
 }
 
 /** Change one pane's fields (e.g. a browser pane's url). */
-export function updatePane(node: PaneNode, paneId: string, patch: { url?: string; title?: string }): PaneNode {
+export function updatePane(node: PaneNode, paneId: string, patch: { url?: string; title?: string; name?: string }): PaneNode {
   if (node.kind === "pane") return node.id === paneId ? { ...node, ...patch } : node;
   return { ...node, a: updatePane(node.a, paneId, patch), b: updatePane(node.b, paneId, patch) };
+}
+
+/** Give a pane a user-chosen name; a blank name clears it. */
+export function renamePane(node: PaneNode, paneId: string, name: string): PaneNode {
+  return updatePane(node, paneId, { name: name.trim() || undefined });
 }
 
 /** Every pane, left-to-right / top-to-bottom. */
@@ -120,7 +125,8 @@ function validNode(v: unknown): v is PaneNode {
     return (
       typeof n.cwd === "string" &&
       (n.view === undefined || n.view === "terminal" || n.view === "browser") &&
-      (n.url === undefined || typeof n.url === "string")
+      (n.url === undefined || typeof n.url === "string") &&
+      (n.name === undefined || typeof n.name === "string")
     );
   }
   return (

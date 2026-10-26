@@ -279,6 +279,7 @@ function Workspace() {
                     onFocus={(paneId) => terminalStore.focus(f.id, paneId)}
                     onResize={(splitId, ratio) => terminalStore.resize(f.id, splitId, ratio)}
                     onClose={(paneId) => terminalStore.close(f.id, paneId)}
+                    onRename={(paneId, name) => terminalStore.renamePane(f.id, paneId, name)}
                     register={(paneId, h) => {
                       if (h) handles.current.set(paneId, h);
                       else handles.current.delete(paneId);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeTab, cycleTab, initialTabs, moveTab, openTab, restoreTabs, selectByNumber, setScreen, type TabsState } from "./tabs";
+import { closeTab, cycleTab, initialTabs, moveTab, openTab, renameTab, restoreTabs, selectByNumber, setScreen, type TabsState } from "./tabs";
 
 const state = (ids: string[], activeId: string): TabsState => ({ tabs: ids.map((id) => ({ id, screen: "k8s" as const })), activeId });
 const ids = (s: TabsState) => s.tabs.map((t) => t.id);
@@ -34,6 +34,18 @@ describe("tabs", () => {
   it("changes a tab's screen and reorders", () => {
     expect(setScreen(initialTabs("x"), "x", "tp").tabs[0].screen).toBe("tp");
     expect(ids(moveTab(state(["a", "b", "c"], "a"), "a", 2))).toEqual(["b", "c", "a"]);
+    expect(ids(moveTab(state(["a", "b", "c"], "a"), "c", 0))).toEqual(["c", "a", "b"]);
+  });
+
+  it("renames a tab, and a blank name brings back the automatic title", () => {
+    const named = renameTab(state(["a", "b"], "a"), "b", "  Prod pods ");
+    expect(named.tabs[1].title).toBe("Prod pods");
+    expect(renameTab(named, "b", "   ").tabs[1]).toEqual({ id: "b", screen: "k8s" });
+  });
+
+  it("keeps custom names when restoring, dropping invalid ones", () => {
+    const s = restoreTabs({ tabs: [{ id: "a", screen: "k8s", title: "Mine" }, { id: "b", screen: "db", title: 42 }], activeId: "a" });
+    expect(s.tabs).toEqual([{ id: "a", screen: "k8s", title: "Mine" }, { id: "b", screen: "db" }]);
   });
 
   it("restores only valid stored tabs", () => {

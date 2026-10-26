@@ -67,10 +67,25 @@ fn place(view: &Webview, x: f64, y: f64, width: f64, height: f64) -> Result<(), 
     view.set_size(LogicalSize::new(width.max(1.0), height.max(1.0))).map_err(|e| e.to_string())
 }
 
+/// ⌘R / Ctrl+R reloads the page. Keys typed in a web view never reach the
+/// app, and the page has no access to the app's commands, so the page
+/// reloads itself. Capture phase, so the page's own handlers can't swallow it.
+const RELOAD_SHORTCUT: &str = r#"window.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+    e.preventDefault();
+    location.reload();
+  }
+}, true);"#;
+
+/// ⌘F / Ctrl+F: a find bar inside the page, for the same reason.
+const FIND_IN_PAGE: &str = include_str!("browser_find.js");
+
 fn build(app: &AppHandle, pane_id: &str, start: Url) -> WebviewBuilder<tauri::Wry> {
     let (nav_app, load_app, title_app, open_app) = (app.clone(), app.clone(), app.clone(), app.clone());
     let (nav_id, load_id, title_id, open_id) = (pane_id.to_string(), pane_id.to_string(), pane_id.to_string(), pane_id.to_string());
     WebviewBuilder::new(label_for(pane_id), WebviewUrl::External(start))
+        .initialization_script(RELOAD_SHORTCUT)
+        .initialization_script(FIND_IN_PAGE)
         .on_navigation(move |url| {
             let ok = allowed(url);
             if ok {
@@ -149,7 +164,7 @@ pub async fn browser_navigate(browsers: State<'_, Browsers>, pane_id: String, ur
     view.navigate(url).map_err(|e| e.to_string())
 }
 
-/// back, forward or reload.
+/// back, forward, reload or find (opens the page's find bar).
 #[tauri::command]
 pub async fn browser_go(browsers: State<'_, Browsers>, pane_id: String, action: String) -> Result<(), String> {
     let view = lock(&browsers).get(&pane_id).cloned().ok_or("This browser pane isn't open.")?;
@@ -157,6 +172,9 @@ pub async fn browser_go(browsers: State<'_, Browsers>, pane_id: String, action: 
         "back" => view.eval("history.back()"),
         "forward" => view.eval("history.forward()"),
         "reload" => view.reload(),
+        "find" => view
+            .set_focus()
+            .and_then(|()| view.eval("window.__workbenchFind && window.__workbenchFind.open()")),
         other => return Err(format!("Unknown browser action {other}.")),
     }
     .map_err(|e| e.to_string())

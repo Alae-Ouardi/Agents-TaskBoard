@@ -3,7 +3,7 @@
 // restart in place).
 
 import { useSyncExternalStore } from "react";
-import { closePane, findPane, newId, newPane, panes, restoreFolders, setRatio, splitPane, updatePane } from "./logic/layout";
+import { closePane, findPane, newId, newPane, panes, renamePane, restoreFolders, setRatio, splitPane, updatePane } from "./logic/layout";
 import type { PaneView, SplitDir, TermFolder, TermTab } from "./types";
 
 const KEY = "terminal.folders";
@@ -169,6 +169,9 @@ export const terminalStore = {
   },
   resize(id: string, splitId: string, ratio: number) {
     update(id, (f) => ({ ...f, tabs: f.tabs.map((t) => ({ ...t, layout: setRatio(t.layout, splitId, ratio) })) }));
+  },
+  renamePane(id: string, paneId: string, name: string) {
+    update(id, (f) => updateTab(f, (t) => ({ ...t, layout: renamePane(t.layout, paneId, name) }), paneId));
   },
   /** Remember a browser pane's page (restored on relaunch) and its title. */
   setPage(id: string, paneId: string, patch: { url?: string; title?: string }) {

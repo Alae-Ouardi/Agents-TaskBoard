@@ -7,8 +7,9 @@ export type Direction = "left" | "right" | "up" | "down";
 /** What a pane shows: a shell, or a web page (url "" = the start picker). */
 export type PaneView = "terminal" | "browser";
 
+/** A pane's `title` is its browser page's; `name` is what the user called it. */
 export type PaneNode =
-  | { kind: "pane"; id: string; cwd: string; view?: PaneView; url?: string; title?: string }
+  | { kind: "pane"; id: string; cwd: string; view?: PaneView; url?: string; title?: string; name?: string }
   | { kind: "split"; id: string; dir: SplitDir; ratio: number; a: PaneNode; b: PaneNode };
 
 /** One tab of a folder: a terminal or browser, splittable. */

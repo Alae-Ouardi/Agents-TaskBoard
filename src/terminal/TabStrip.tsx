@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconTerminal } from "../shared/icons";
 import { useOverlay } from "../shared/overlay";
+import { useTabDrag } from "../shared/tabDrag";
 import { panes, tabLabel } from "./logic/layout";
 import { terminalStore } from "./store";
 import type { TermFolder, TermTab } from "./types";
@@ -22,7 +23,7 @@ function Globe({ size = 12 }: { size?: number }) {
 export function TabStrip({ folder }: { folder: TermFolder }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const { strip, dragging, start } = useTabDrag((tabId, to) => terminalStore.moveTab(folder.id, tabId, to));
   const plus = useRef<HTMLDivElement>(null);
   // The menu drops over the panes: browser views must step aside.
   useOverlay(menu);
@@ -35,7 +36,7 @@ export function TabStrip({ folder }: { folder: TermFolder }) {
   }, [menu]);
 
   return (
-    <div className="flex h-9 shrink-0 items-end gap-1 border-b border-[var(--line)] bg-[var(--bg)] px-3">
+    <div ref={strip} className="flex h-9 shrink-0 items-end gap-1 border-b border-[var(--line)] bg-[var(--bg)] px-3">
       {folder.tabs.map((t, index) => {
         const active = t.id === folder.activeTab;
         const label = tabLabel(t, folder.tabs);
@@ -43,13 +44,8 @@ export function TabStrip({ folder }: { folder: TermFolder }) {
         return (
           <div
             key={t.id}
-            draggable={renaming !== t.id}
-            onDragStart={() => setDragging(t.id)}
-            onDragEnd={() => setDragging(null)}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (dragging && dragging !== t.id) terminalStore.moveTab(folder.id, dragging, index);
-            }}
+            data-tab-id={t.id}
+            onPointerDown={(e) => renaming !== t.id && start(e, t.id)}
             onMouseDown={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
@@ -57,7 +53,11 @@ export function TabStrip({ folder }: { folder: TermFolder }) {
               } else if (e.button === 0) terminalStore.selectTab(folder.id, t.id);
             }}
             onDoubleClick={() => setRenaming(t.id)}
-            title={`${label}${index < 9 ? `  (⌥⌘${index + 1})` : ""} — double-click to rename`}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setRenaming(t.id);
+            }}
+            title={`${label}${index < 9 ? `  (⌥⌘${index + 1})` : ""} — double-click or right-click to rename, drag to move`}
             className={`group relative flex h-7 max-w-[200px] min-w-[110px] cursor-default items-center gap-1.5 rounded-t-md border border-b-0 px-2 text-[11.5px] select-none ${
               active ? "border-[var(--line-strong)] bg-[#011627] text-slate-100" : "border-transparent text-slate-500 hover:bg-[var(--line-soft)] hover:text-slate-300"
             } ${dragging === t.id ? "opacity-50" : ""}`}
@@ -70,6 +70,7 @@ export function TabStrip({ folder }: { folder: TermFolder }) {
                 className="bare-input min-w-0 flex-1 bg-transparent text-[11.5px] text-slate-100 outline-none"
                 defaultValue={t.title ?? label}
                 onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 onBlur={(e) => {
                   terminalStore.renameTab(folder.id, t.id, e.target.value === label && !t.title ? "" : e.target.value);
                   setRenaming(null);
@@ -85,6 +86,7 @@ export function TabStrip({ folder }: { folder: TermFolder }) {
             {count > 1 && <span className="num text-[9.5px] text-slate-500">{count}</span>}
             <button
               onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={() => terminalStore.closeTab(folder.id, t.id)}
               className={`rounded px-1 leading-none text-slate-500 hover:bg-[var(--line)] hover:text-slate-100 ${active ? "" : "opacity-0 group-hover:opacity-100"}`}
               title="Close tab"

@@ -10,7 +10,7 @@ import { Home, type AppMode } from "./shell/Home";
 import { TabBar } from "./shell/TabBar";
 import { useHiddenViews } from "./shell/views";
 import { clearTabState, TabProvider, type TabTitle } from "./shell/TabContext";
-import { closeTab, cycleTab, homeHiddenTabs, moveTab, openTab, restoreTabs, selectByNumber, selectTab, setScreen, type TabsState } from "./shell/tabs";
+import { closeTab, cycleTab, homeHiddenTabs, moveTab, openTab, renameTab, restoreTabs, selectByNumber, selectTab, setScreen, type TabsState } from "./shell/tabs";
 import { ConfirmProvider } from "./shared/confirm/ConfirmProvider";
 import { PrefsProvider, useLocalState } from "./tp-workspace/prefs";
 import { TerminalWorkspace } from "./terminal/TerminalWorkspace";
@@ -123,6 +123,7 @@ function Tabs() {
         onClose={close}
         onNew={() => update((s) => openTab(s, "home"))}
         onMove={(id, to) => update((s) => moveTab(s, id, to))}
+        onRename={(id, name) => update((s) => renameTab(s, id, name))}
       />
       <div className="relative min-h-0 flex-1">
         {state.tabs.map((tab) => (

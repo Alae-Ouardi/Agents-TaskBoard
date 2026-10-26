@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closePane, neighbour, newPane, panes, rects, restoreFolders, setRatio, splitPane, tabLabel } from "./layout";
+import { closePane, neighbour, newPane, panes, rects, renamePane, restoreFolders, setRatio, splitPane, tabLabel } from "./layout";
 import type { PaneNode } from "../types";
 
 const pane = (id: string, cwd = "/w"): PaneNode => ({ kind: "pane", id, cwd });
@@ -81,5 +81,17 @@ describe("split layout", () => {
 
   it("creates panes with unique ids", () => {
     expect(newPane("/w").id).not.toBe(newPane("/w").id);
+  });
+});
+
+describe("renamePane", () => {
+  it("names only the targeted pane, trimming whitespace", () => {
+    const named = renamePane(grid(), "b", "  logs ");
+    expect(panes(named).map((p) => p.name)).toEqual([undefined, "logs", undefined, undefined]);
+  });
+
+  it("clears the name when given a blank one", () => {
+    const named = renamePane(grid(), "a", "api");
+    expect(panes(renamePane(named, "a", "   "))[0].name).toBeUndefined();
   });
 });

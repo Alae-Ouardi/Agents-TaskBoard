@@ -1,10 +1,12 @@
 // Browser-style tab bar in the window's title area. Tabs are coloured by
 // workspace; Kubernetes and database tabs show their environment tier.
-// Drag a tab to reorder, middle-click or × to close.
+// Drag a tab to reorder, double-click or right-click to rename, middle-click
+// or × to close.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MeetingIndicator } from "../meetings/MeetingIndicator";
 import { TIER_STYLE } from "../shared/envKind";
+import { useTabDrag } from "../shared/tabDrag";
 import { SCREEN_META } from "./AppSwitcher";
 import type { TabTitle } from "./TabContext";
 import type { Tab } from "./tabs";
@@ -17,31 +19,41 @@ interface Props {
   onClose: (id: string) => void;
   onNew: () => void;
   onMove: (id: string, toIndex: number) => void;
+  onRename: (id: string, title: string) => void;
 }
 
-export function TabBar({ tabs, activeId, titles, onSelect, onClose, onNew, onMove }: Props) {
-  const [dragging, setDragging] = useState<string | null>(null);
+export function TabBar({ tabs, activeId, titles, onSelect, onClose, onNew, onMove, onRename }: Props) {
+  const { strip, dragging, start } = useTabDrag(onMove);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  // Escape cancels: the blur that follows must not save.
+  const cancelled = useRef(false);
+  const beginRename = (id: string) => {
+    cancelled.current = false;
+    setRenaming(id);
+  };
 
   return (
     <div
       data-tauri-drag-region
       className="flex h-10 shrink-0 items-end gap-1 border-b border-[var(--line)] bg-[var(--bg)] pr-2 pl-[78px]"
     >
-      <div data-tauri-drag-region className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
+      <div ref={strip} data-tauri-drag-region className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
         {tabs.map((tab, index) => {
           const meta = SCREEN_META[tab.screen];
           const title = titles[tab.id];
           const active = tab.id === activeId;
+          const auto = title?.label ?? (tab.screen === "home" ? "New tab" : meta.label);
+          const label = tab.title ?? auto;
           const tier = title?.tier && title.tier !== "other" ? TIER_STYLE[title.tier] : null;
           return (
             <div
               key={tab.id}
-              draggable
-              onDragStart={() => setDragging(tab.id)}
-              onDragEnd={() => setDragging(null)}
-              onDragOver={(e) => {
+              data-tab-id={tab.id}
+              onPointerDown={(e) => renaming !== tab.id && start(e, tab.id)}
+              onDoubleClick={() => beginRename(tab.id)}
+              onContextMenu={(e) => {
                 e.preventDefault();
-                if (dragging && dragging !== tab.id) onMove(dragging, index);
+                beginRename(tab.id);
               }}
               onMouseDown={(e) => {
                 if (e.button === 1) {
@@ -49,7 +61,7 @@ export function TabBar({ tabs, activeId, titles, onSelect, onClose, onNew, onMov
                   onClose(tab.id);
                 } else if (e.button === 0) onSelect(tab.id);
               }}
-              title={`${meta.label}${title ? ` — ${title.label}` : ""}${index < 9 ? `  (⌘${index + 1})` : ""}`}
+              title={`${label}${index < 9 ? `  (⌘${index + 1})` : ""} — double-click or right-click to rename, drag to move`}
               className={`group relative flex h-8 max-w-[220px] min-w-[120px] cursor-default items-center gap-2 rounded-t-lg border border-b-0 px-2.5 text-[12px] select-none ${
                 active
                   ? "border-[var(--line-strong)] bg-[var(--panel-solid)] text-slate-100"
@@ -60,7 +72,30 @@ export function TabBar({ tabs, activeId, titles, onSelect, onClose, onNew, onMov
               <span className="shrink-0" style={{ color: active ? meta.color : undefined }}>
                 {meta.icon(13)}
               </span>
-              <span className="min-w-0 flex-1 truncate">{title?.label ?? (tab.screen === "home" ? "New tab" : meta.label)}</span>
+              {renaming === tab.id ? (
+                <input
+                  autoFocus
+                  className="bare-input min-w-0 flex-1 bg-transparent text-[12px] text-slate-100 outline-none"
+                  defaultValue={label}
+                  onFocus={(e) => e.target.select()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    // Saving the automatic title unchanged keeps it automatic.
+                    if (!cancelled.current) onRename(tab.id, e.target.value === auto && !tab.title ? "" : e.target.value);
+                    setRenaming(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    if (e.key === "Escape") {
+                      cancelled.current = true;
+                      setRenaming(null);
+                    }
+                  }}
+                />
+              ) : (
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+              )}
               {tier && (
                 <span
                   className="num shrink-0 rounded px-1 text-[8.5px] font-bold tracking-wider"
@@ -71,6 +106,7 @@ export function TabBar({ tabs, activeId, titles, onSelect, onClose, onNew, onMov
               )}
               <button
                 onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => onClose(tab.id)}
                 className={`shrink-0 rounded px-1 leading-none text-slate-500 hover:bg-[var(--line)] hover:text-slate-100 ${active ? "" : "opacity-0 group-hover:opacity-100"}`}
                 title="Close tab (⌘W)"

@@ -6,6 +6,7 @@ import { useMemo, useRef } from "react";
 import type { XtermHandle } from "../shared/terminal/XtermView";
 import { panes, rects, splitRects } from "./logic/layout";
 import { BrowserPane } from "./BrowserPane";
+import { PaneName } from "./PaneName";
 import { TerminalPane } from "./TerminalPane";
 import type { TermTab } from "./types";
 
@@ -20,12 +21,13 @@ interface Props {
   onResize: (splitId: string, ratio: number) => void;
   /** Close one pane of a split. */
   onClose: (paneId: string) => void;
+  onRename: (paneId: string, name: string) => void;
   register: (paneId: string, handle: XtermHandle | null) => void;
 }
 
 const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
 
-export function SplitView({ folderId, tab, visible, onFocus, onResize, onClose, register }: Props) {
+export function SplitView({ folderId, tab, visible, onFocus, onResize, onClose, onRename, register }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const list = useMemo(() => panes(tab.layout), [tab.layout]);
   const areas = useMemo(() => rects(tab.layout), [tab.layout]);
@@ -88,25 +90,31 @@ export function SplitView({ folderId, tab, visible, onFocus, onResize, onClose, 
                 onClose={single ? undefined : () => onClose(p.id)}
               />
             ) : (
-              <div className="group/pane relative h-full w-full p-1.5">
-                {!single && (
-                  <button
-                    className="absolute top-1.5 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-md bg-[#011627]/80 text-[13px] leading-none text-slate-400 opacity-60 hover:bg-rose-500/20 hover:text-rose-200 hover:opacity-100 group-hover/pane:opacity-100"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={() => onClose(p.id)}
-                    title="Close this pane (⌥⌘W)"
-                    aria-label="Close pane"
-                  >
-                    ×
-                  </button>
-                )}
-                <TerminalPane
-                  cwd={p.cwd}
-                  visible={visible}
-                  focused={focused}
-                  onFocus={() => onFocus(p.id)}
-                  register={(h) => register(p.id, h)}
-                />
+              <div className="group/pane flex h-full w-full flex-col p-1.5 pt-1">
+                <div className="flex h-5 shrink-0 items-center gap-1">
+                  <PaneName name={p.name} onRename={(name) => onRename(p.id, name)} />
+                  <span className="flex-1" />
+                  {!single && (
+                    <button
+                      className="flex h-5 w-5 items-center justify-center rounded-md text-[13px] leading-none text-slate-400 opacity-60 hover:bg-rose-500/20 hover:text-rose-200 hover:opacity-100 group-hover/pane:opacity-100"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={() => onClose(p.id)}
+                      title="Close this pane (⌥⌘W)"
+                      aria-label="Close pane"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <div className="min-h-0 flex-1">
+                  <TerminalPane
+                    cwd={p.cwd}
+                    visible={visible}
+                    focused={focused}
+                    onFocus={() => onFocus(p.id)}
+                    register={(h) => register(p.id, h)}
+                  />
+                </div>
               </div>
             )}
           </div>
